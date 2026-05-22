@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+"""
+IRazor Bundle Encryptor — Pure Python (zero dependencies)
+==========================================================
+يعمل على أي Python 3.6+ بدون أي pip install
+
+Usage:
+    python3 encrypt_bundle.py                  → bundle.zip → bundle.enc
+    python3 encrypt_bundle.py input.zip        → custom input
+    python3 encrypt_bundle.py input.zip out.enc
+
+Output: bundle.enc — ضعه في app/src/main/assets/
+Format: [16 bytes IV][AES-256-CBC encrypted ZIP]
+Key:    PBKDF2-HMAC-SHA256(password, salt, 65536 iter, 32 bytes)
+"""
+
+import sys, os, hashlib
+from pathlib import Path
+
+# ── Must match MainActivity.kt ────────────────────────────────────────────────
+PASSWORD = b"IRazorSecretKey2025!"
+SALT     = b"IRazorSalt1234567890"
+ITER     = 65536
+KEY_LEN  = 32
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Pure Python AES-256-CBC (no dependencies)
+# ══════════════════════════════════════════════════════════════════════════════
+
+_sbox = bytes([
+    0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
+    0xca,0x82,0xc9,0x7d,0xfa,0x59,0x47,0xf0,0xad,0xd4,0xa2,0xaf,0x9c,0xa4,0x72,0xc0,
+    0xb7,0xfd,0x93,0x26,0x36,0x3f,0xf7,0xcc,0x34,0xa5,0xe5,0xf1,0x71,0xd8,0x31,0x15,
+    0x04,0xc7,0x23,0xc3,0x18,0x96,0x05,0x9a,0x07,0x12,0x80,0xe2,0xeb,0x27,0xb2,0x75,
+    0x09,0x83,0x2c,0x1a,0x1b,0x6e,0x5a,0xa0,0x52,0x3b,0xd6,0xb3,0x29,0xe3,0x2f,0x84,
+    0x53,0xd1,0x00,0xed,0x20,0xfc,0xb1,0x5b,0x6a,0xcb,0xbe,0x39,0x4a,0x4c,0x58,0xcf,
+    0xd0,0xef,0xaa,0xfb,0x43,0x4d,0x33,0x85,0x45,0xf9,0x02,0x7f,0x50,0x3c,0x9f,0xa8,
+    0x51,0xa3,0x40,0x8f,0x92,0x9d,0x38,0xf5,0xbc,0xb6,0xda,0x21,0x10,0xff,0xf3,0xd2,
+    0xcd,0x0c,0x13,0xec,0x5f,0x97,0x44,0x17,0xc4,0xa7,0x7e,0x3d,0x64,0x5d,0x19,0x73,
+    0x60,0x81,0x4f,0xdc,0x22,0x2a,0x90,0x88,0x46,0xee,0xb8,0x14,0xde,0x5e,0x0b,0xdb,
+    0xe0,0x32,0x3a,0x0a,0x49,0x06,0x24,0x5c,0xc2,0xd3,0xac,0x62,0x91,0x95,0xe4,0x79,
+    0xe7,0xc8,0x37,0x6d,0x8d,0xd5,0x4e,0xa9,0x6c,0x56,0xf4,0xea,0x65,0x7a,0xae,0x08,
+    0xba,0x78,0x25,0x2e,0x1c,0xa6,0xb4,0xc6,0xe8,0xdd,0x74,0x1f,0x4b,0xbd,0x8b,0x8a,
+    0x70,0x3e,0xb5,0x66,0x48,0x03,0xf6,0x0e,0x61,0x35,0x57,0xb9,0x86,0xc1,0x1d,0x9e,
+    0xe1,0xf8,0x98,0x11,0x69,0xd9,0x8e,0x94,0x9b,0x1e,0x87,0xe9,0xce,0x55,0x28,0xdf,
+    0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68,0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16,
+])
+
+def _xtime(a): return ((a << 1) ^ 0x1b) & 0xff if a & 0x80 else (a << 1) & 0xff
+
+def _gmul(a, b):
+    p = 0
+    for _ in range(8):
+        if b & 1: p ^= a
+        a = _xtime(a); b >>= 1
+    return p
+
+def _sub(s):  return [_sbox[b] for b in s]
+
+def _sr(s):
+    return [s[0],s[5],s[10],s[15], s[4],s[9],s[14],s[3],
+            s[8],s[13],s[2],s[7],  s[12],s[1],s[6],s[11]]
+
+def _mc(s):
+    out = []
+    for c in range(4):
+        a = [s[c*4+r] for r in range(4)]
+        out += [_gmul(a[0],2)^_gmul(a[1],3)^a[2]^a[3],
+                a[0]^_gmul(a[1],2)^_gmul(a[2],3)^a[3],
+                a[0]^a[1]^_gmul(a[2],2)^_gmul(a[3],3),
+                _gmul(a[0],3)^a[1]^a[2]^_gmul(a[3],2)]
+    return out
+
+def _xor(a, b): return [x ^ y for x, y in zip(a, b)]
+
+_rcon = [0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1b,0x36]
+
+def _key_expand(key):
+    w = [list(key[i*4:i*4+4]) for i in range(8)]
+    for i in range(8, 60):
+        t = w[i-1][:]
+        if i % 8 == 0:
+            t = [_sbox[t[1]] ^ _rcon[i//8-1], _sbox[t[2]], _sbox[t[3]], _sbox[t[0]]]
+        elif i % 8 == 4:
+            t = [_sbox[b] for b in t]
+        w.append(_xor(w[i-8], t))
+    return [[b for ww in w[r*4:r*4+4] for b in ww] for r in range(15)]
+
+def _block_enc(block, rk):
+    s = _xor(list(block), rk[0])
+    for r in range(1, 14):
+        s = _xor(_mc(_sr(_sub(s))), rk[r])
+    return bytes(_xor(_sr(_sub(s)), rk[14]))
+
+def aes256_cbc_enc(key: bytes, iv: bytes, data: bytes) -> bytes:
+    rk = _key_expand(key)
+    out = b""; prev = list(iv)
+    for i in range(0, len(data), 16):
+        blk = list(data[i:i+16])
+        enc = _block_enc(bytes(_xor(blk, prev)), rk)
+        out += enc; prev = list(enc)
+    return out
+
+def pkcs7_pad(data: bytes, bs=16) -> bytes:
+    n = bs - (len(data) % bs)
+    return data + bytes([n] * n)
+
+def pbkdf2(password, salt, iterations, dklen):
+    return hashlib.pbkdf2_hmac('sha256', password, salt, iterations, dklen)
+
+# ══════════════════════════════════════════════════════════════════════════════
+
+def encrypt(input_path: Path, output_path: Path):
+    print(f"[IRazor] Reading   : {input_path}")
+    data = input_path.read_bytes()
+    print(f"[IRazor] Input     : {len(data):,} bytes")
+
+    print(f"[IRazor] Deriving key (PBKDF2 {ITER} iter)…")
+    key = pbkdf2(PASSWORD, SALT, ITER, KEY_LEN)
+    iv  = os.urandom(16)
+
+    print(f"[IRazor] Encrypting (AES-256-CBC)…")
+    padded = pkcs7_pad(data)
+    ct     = aes256_cbc_enc(key, iv, padded)
+
+    output_path.write_bytes(iv + ct)
+    print(f"[IRazor] Output    : {output_path}  ({len(iv+ct):,} bytes)")
+    print(f"[IRazor] Done ✅   ضع bundle.enc في app/src/main/assets/")
+
+if __name__ == "__main__":
+    inp = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("bundle.zip")
+    out = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("bundle.enc")
+    if not inp.exists():
+        print(f"[IRazor] ❌ ما لقيت الملف: {inp}"); sys.exit(1)
+    encrypt(inp, out)
