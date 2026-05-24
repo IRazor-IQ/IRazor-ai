@@ -6,6 +6,8 @@
 
 # IRazor AI — Autonomous Agentic Coding Runtime
 
+the first ai model from iraq 
+
 ## 1. Introduction
 
 We present IRazor AI an autonomous agentic coding runtime built as a compact single-file mobile web application. IRazor AI integrates multidisciplinary reasoning code generation sandboxed execution APK building file operations and real-time conversational orchestration within an Android WebView environment.
