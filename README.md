@@ -4,6 +4,10 @@
     </a>
 </p>
 
+  <a href="https://x.com/IRazorai"><img alt="Twitter Follow"
+    src="https://img.shields.io/badge/Twitter-IRazorAI-white?logo=x&logoColor=white"/></a>
+  <br>
+
 # IRazor AI — Autonomous Agentic Coding Runtime
 
 the first ai model from iraq 
