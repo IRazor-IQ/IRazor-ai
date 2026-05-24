@@ -69,6 +69,10 @@ A few noteworthy teams and open-source projects that inspired parts of the IRazo
 - OpenCode by anomalyco  
   https://github.com/anomalyco/opencode
 
+- deep seek V3
+
+   https://github.com/deepseek-ai/DeepSeek-V3
+  
 Their work on lightweight coding workflows and runtime orchestration helped influence portions of the IRazor execution system.
 
 ---
