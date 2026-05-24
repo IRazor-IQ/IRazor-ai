@@ -44,7 +44,7 @@ Development relied primarily on iterative human-guided prompt compression and ru
 ---
 **windows - Mac - Linux in website**
 
-https://irazor-iq.github.io/IRazor-ai-website-/
+**soon**
 
 ---
 
