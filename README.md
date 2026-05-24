@@ -42,6 +42,11 @@ Development relied primarily on iterative human-guided prompt compression and ru
 - Compression-focused runtime design allows higher component density without significantly increasing token usage.
 
 ---
+**windows - Mac - Linux in website**
+
+https://irazor-iq.github.io/IRazor-ai-website-/
+
+---
 
 ## Post-Training Runtime Refinement
 
@@ -49,6 +54,7 @@ Development relied primarily on iterative human-guided prompt compression and ru
 - The runtime integrates multiple domain-oriented reasoning patterns spanning automation security tooling multilingual processing search and visual reasoning.
 - These refinements improve reliability during long-horizon autonomous tasks and multi-step coding operations.
 
+---
 
 # Special Thanks
 
