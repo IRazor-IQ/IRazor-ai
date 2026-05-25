@@ -71,7 +71,11 @@ A few noteworthy teams and open-source projects that inspired parts of the IRazo
 
 - deep seek V3
 
-   https://github.com/deepseek-ai/DeepSeek-V3
+ https://github.com/deepseek-ai/DeepSeek-V3
+
+- Claw Code
+
+https://github.com/instructkr/claw-code
   
 Their work on lightweight coding workflows and runtime orchestration helped influence portions of the IRazor execution system.
 
@@ -91,6 +95,9 @@ IQD1R is **not** a standalone AI model or foundation LLM.
 its not like deep seek or cluade Or any model the model make to Safe use + hard work in projects Without limits or vip or 200$ 😂
 
 Instead it is an advanced runtime and orchestration configuration built on top of an underlying base model featuring:
+
+**NEW** add 14 Infrastructure Layers 
+(Claw-code-free-full no need api Anthropic API key 🔥) 
 
 - 50-component runtime orchestration
 - Dynamic Multi-Component Activation (MCA)
