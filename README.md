@@ -79,13 +79,16 @@ Their work on lightweight coding workflows and runtime orchestration helped infl
 
 # Runtime Evolution
 
-IRazor originally began as an experimental orchestration layer built around the `big-pickle` runtime available through OpenCode/Zen.
+IRazor originally began as an experimental orchestration layer built around the `big-pickle` runtime available through OpenCode/Zen.api 
+Saving time :3
 
 Through iterative runtime refinement prompt compression execution restructuring and multi-component orchestration the system evolved into a heavily modified runtime internally referred to as:
 
 ## IQD1R
 
 IQD1R is **not** a standalone AI model or foundation LLM.
+
+its not like deep seek or cluade Or any model the model make to Safe use + hard work in projects Without limits or vip or 200$ 😂
 
 Instead it is an advanced runtime and orchestration configuration built on top of an underlying base model featuring:
 
