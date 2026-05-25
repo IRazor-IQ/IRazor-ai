@@ -104,7 +104,7 @@ The system focuses on practical autonomous execution rather than raw benchmark m
 
  **Infrastructure & Runtime Features**
 
-**NEW: 14 additional infrastructure layers**
+**NEW add: 14 additional infrastructure layers**
 
 **(Claw-code-free-full • no Anthropic API key required 🔥)**
 
