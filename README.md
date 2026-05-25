@@ -88,24 +88,41 @@ Saving time :3
 
 Through iterative runtime refinement prompt compression execution restructuring and multi-component orchestration the system evolved into a heavily modified runtime internally referred to as:
 
-## IQD1R
+# **IQD1R**
 
-IQD1R is **not** a standalone AI model or foundation LLM.
+IQD1R is **not** a standalone AI model, foundation model, or proprietary LLM.
 
-its not like deep seek or cluade Or any model the model make to Safe use + hard work in projects Without limits or vip or 200$ 😂
+It does not compete with models like **DeepSeek, Claude, GPT, Gemini**, or other base-model providers.
 
-Instead it is an advanced runtime and orchestration configuration built on top of an underlying base model featuring:
+The underlying language model still comes from an external provider/runtime.
 
-**NEW** add 14 Infrastructure Layers 
-(Claw-code-free-full no need api Anthropic API key 🔥) 
+IQD1R is an advanced runtime and orchestration system designed to improve autonomous coding workflows, long project execution, tool usage, reasoning stability, and unrestricted project-scale task handling.
 
-- 50-component runtime orchestration
-- Dynamic Multi-Component Activation (MCA)
-- Reflection and self-repair loops
-- Tool-aware execution routing
-- Sandbox-aware execution policies
-- Runtime trust scoring
-- Compressed long-context handling
-- Autonomous task decomposition
+The system focuses on practical autonomous execution rather than raw benchmark marketing.
 
-The result is significantly stronger autonomous coding and task-planning behavior compared to the original baseline runtime configuration.
+---
+
+ **Infrastructure & Runtime Features**
+
+**NEW: 14 additional infrastructure layers**
+
+**(Claw-code-free-full • no Anthropic API key required 🔥)**
+
+- **50-component runtime orchestration**
+- **Dynamic Multi-Component Activation (MCA)**
+- **Reflection and self-repair loops**
+- **Tool-aware execution routing**
+- **Sandbox-aware execution policies**
+- **Runtime trust scoring**
+- **Compressed long-context handling**
+- **Autonomous task decomposition**
+- **Multi-step project planning**
+- **Runtime memory coordination**
+- **Execution-state recovery**
+- **Agent-style workflow chaining**
+- **Lightweight mobile deployment**
+- **Android WebView optimization**
+
+---
+
+The result is significantly stronger autonomous coding and task-planning behavior compared to the original baseline runtime configuration while still relying on an external underlying model backend.
