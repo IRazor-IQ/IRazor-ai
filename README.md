@@ -10,7 +10,7 @@
 
 # IRazor AI — Autonomous Agentic Coding Runtime
 
-the first ai model from iraq 
+the first ai model from iraq and open source
 
 ## 1. Introduction
 
