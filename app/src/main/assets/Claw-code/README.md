@@ -1,6 +1,6 @@
-# IRazor AI — Autonomous Agentic Coding Runtime IQD2R
+# 🚀 IRazor AI — Autonomous Agentic Coding Runtime IQD2R
 
-## MASTER BLUEPRINT (1–14)
+## 🏗️ MASTER BLUEPRINT (1–14)
 
 ```
 Layers:  1   2   3   4   5   6   7   8   9  10  11  12  13  14
@@ -31,11 +31,13 @@ Human Gate ───────────────────────
 - Observability Telemetry → Trace → Metric → Log
 - Approval Queue → Gate → Escalate → Audit
 
+
 ---
 
-## Layer 1: Type Configuration
 
-### IRazorAi.md Scanner → Schema & Rules Injection
+## 🛠️ Layer 1: **Type Configuration**
+
+### 🔹 IRazorAi.md Scanner → Schema & Rules Injection
 
 The Type Configuration layer defines the static schema that governs all agent behavior. Every prompt, tool call, and agent output passes through a strict type validator before execution proceeds.
 
@@ -101,11 +103,13 @@ interface TypeConfig {
 - Schema merge: O(n) with deduplication
 - Memory: ~200KB per 10K schemas
 
+
 ---
 
-## Layer 2: Streaming Intent Interface
 
-### Real-Time Intent Streaming
+## 🛠️ Layer 2: **Streaming Intent Interface**
+
+### 🔹 Real-Time Intent Streaming
 
 The streaming layer provides low-latency, token-by-token parsing of user prompts with continuous intent refinement.
 
@@ -155,7 +159,17 @@ Raw Tokens
 **Low-Latency Parsing:**
 
 | Metric | Target | P95 |
-|--------|--------|-----|
+|
+---
+
+---
+--|
+---
+
+---
+--|
+---
+--|
 | First token latency | <50ms | <120ms |
 | Intent classification | <100ms | <250ms |
 | Full stream TTFB | <200ms | <400ms |
@@ -169,11 +183,13 @@ Window: [t_0 ... t_n] → classify → [t_1 ... t_{n+1}] → reclassify
 
 Reclassification frequency: every 8 tokens or 50ms, whichever comes first.
 
+
 ---
 
-## Layer 3: Hook System
 
-### UserPromptSubmit → Pre-Process Trigger
+## 🛠️ Layer 3: **Hook System**
+
+### 🔹 UserPromptSubmit → Pre-Process Trigger
 
 The hook system provides middleware-ready interception points for validation, enrichment, transformation, and routing.
 
@@ -255,11 +271,13 @@ pre:enrich
 - Hook chain timeout: 5s total
 - Error isolation: one hook failure never cascades
 
+
 ---
 
-## Layer 4: Silent Auto-Approval (with Optional Human Gate)
 
-### AI Classifier → MATCH: settings.json
+## 🛠️ Layer 4: **Silent Auto-Approval (with Optional Human Gate)**
+
+### 🔹 AI Classifier → MATCH: settings.json
 
 The auto-approval layer uses an AI classifier to determine operation risk and either silently proceed or gate behind human approval.
 
@@ -359,11 +377,13 @@ Gate: "⚠️ This operation requires approval.
 User: Y → execute | N → rejected | timeout → auto-reject
 ```
 
+
 ---
 
-## Layer 5: Prefix Memory (Cache-First)
 
-### Cached Tokens → Near-Zero Cost
+## 🛠️ Layer 5: **Prefix Memory (Cache-First)**
+
+### 🔹 Cached Tokens → Near-Zero Cost
 
 Prefix memory implements a cache-first approach where repeated prompt prefixes are cached and reused at near-zero cost.
 
@@ -426,7 +446,17 @@ interface PrefixCacheEntry {
 **Sub-Second Context Recall:**
 
 | Operation | Time |
-|-----------|------|
+|
+---
+
+---
+
+---
+--|
+---
+
+---
+|
 | Cache lookup (hot) | <1μs |
 | Cache lookup (cold) | <50μs |
 | Full rehydration | <100ms |
@@ -448,15 +478,17 @@ Tier 2 (medium): normal LRU — standard cache entries
 Tier 3 (low): evict first — one-shot requests, temp context
 ```
 
+
 ---
 
-## Layer 6: Sub-Agent Orchestration
 
-### Frontend Agent → UI & State
+## 🛠️ Layer 6: **Sub-Agent Orchestration**
 
-### Backend Agent → Logic & Services
+### 🔹 Frontend Agent → UI & State
 
-### QA Agent → Validation & Tests
+### 🔹 Backend Agent → Logic & Services
+
+### 🔹 QA Agent → Validation & Tests
 
 The sub-agent orchestration layer provides a centralized dispatcher with decoupled execution across specialized agents.
 
@@ -550,15 +582,17 @@ Dispatcher:
       └→ runs: npm test
 ```
 
+
 ---
 
-## Layer 7: Tool Execution Engine
 
-### Parallel Reads (10X Speed) → Context & Domains
+## 🛠️ Layer 7: **Tool Execution Engine**
 
-### Sequential Writes (1X Security) → Race Condition Prevention
+### 🔹 Parallel Reads (10X Speed) → Context & Domains
 
-### Preloaded Modules (MB 0) → Fast Tool Spawn
+### 🔹 Sequential Writes (1X Security) → Race Condition Prevention
+
+### 🔹 Preloaded Modules (MB 0) → Fast Tool Spawn
 
 The tool execution engine provides high-performance, safe tool execution with parallel reads and sequential writes.
 
@@ -644,7 +678,21 @@ interface WriteQueue {
 Modules are preloaded into a V8 code cache for instant tool spawn:
 
 | Module | Load Time | Memory |
-|--------|-----------|--------|
+|
+---
+
+---
+--|
+---
+
+---
+
+---
+--|
+---
+
+---
+--|
 | file-system | <1ms | 0KB (code cache) |
 | http-client | <1ms | 0KB (code cache) |
 | sql-query | <1ms | 0KB (code cache) |
@@ -670,15 +718,17 @@ Total preloaded memory overhead: **0MB** (code caching via V8 snapshot). All mod
 }
 ```
 
+
 ---
 
-## Layer 8: MCP Servers (Model Context Protocol)
 
-### sqlite-mcp-server :: Connected
+## 🛠️ Layer 8: **MCP Servers (Model Context Protocol)**
 
-### Efficient File-Mode Exit & Data Querying
+### 🔹 sqlite-mcp-server :: Connected
 
-### Context Pooling Across Agents
+### 🔹 Efficient File-Mode Exit & Data Querying
+
+### 🔹 Context Pooling Across Agents
 
 MCP servers provide standardized data access and context pooling across all agents in the system.
 
@@ -698,7 +748,27 @@ MCP servers provide standardized data access and context pooling across all agen
 **Connected MCP Servers:**
 
 | Server | Status | Protocol | Pool Size |
-|--------|--------|----------|-----------|
+|
+---
+
+---
+--|
+---
+
+---
+--|
+---
+
+---
+
+---
+-|
+---
+
+---
+
+---
+--|
 | sqlite-mcp-server | Connected | stdio | 5 |
 | filesystem-mcp | Connected | stdio | 3 |
 | search-mcp | Connected | HTTP/SSE | 2 |
@@ -768,15 +838,17 @@ sqlite-mcp:
   Memory: file-backed (no heap allocation for reads)
 ```
 
+
 ---
 
-## Layer 9: Contextual Compression Algorithms
 
-### KB 8 → Compressed Summary for Core Work
+## 🛠️ Layer 9: **Contextual Compression Algorithms**
 
-### npm install Completed → Registry Fetch & Linking
+### 🔹 KB 8 → Compressed Summary for Core Work
 
-### Deprecated Warnings Suppressed → Clean Execution
+### 🔹 npm install Completed → Registry Fetch & Linking
+
+### 🔹 Deprecated Warnings Suppressed → Clean Execution
 
 Contextual compression reduces token usage while preserving semantic integrity across all agent operations.
 
@@ -862,7 +934,37 @@ process.on('warning', (warning) => {
 **Compression Benchmarks:**
 
 | Context Type | Raw Size | Compressed | Ratio | Speed |
-|-------------|----------|------------|-------|-------|
+|
+---
+
+---
+
+---
+
+---
+-|
+---
+
+---
+
+---
+-|
+---
+
+---
+
+---
+
+---
+|
+---
+
+---
+-|
+---
+
+---
+-|
 | Project structure (8KB) | 8KB | 320B | 25:1 | 80μs |
 | Dependency graph | 64KB | 3.2KB | 20:1 | 320μs |
 | Recent edits | 16KB | 1.8KB | 9:1 | 150μs |
@@ -870,19 +972,21 @@ process.on('warning', (warning) => {
 | Session state | 32KB | 640B | 50:1 | 200μs |
 | Agent conversation | 256KB | 18KB | 14:1 | 2.8ms |
 
+
 ---
 
-## Layer 10: State Fabric & Session Manager (NEW)
 
-### Session Checkpointing → Every 10 Tokens
+## 🛠️ Layer 10: **State Fabric & Session Manager (NEW)**
 
-### State Versioning → Rollback to Any Prior State
+### 🔹 Session Checkpointing → Every 10 Tokens
 
-### Idle Session Freeze → Zero Memory Leak
+### 🔹 State Versioning → Rollback to Any Prior State
 
-### Cross-Agent State Sync → Eventual Consistency
+### 🔹 Idle Session Freeze → Zero Memory Leak
 
-### Session Replay → Debug Mode
+### 🔹 Cross-Agent State Sync → Eventual Consistency
+
+### 🔹 Session Replay → Debug Mode
 
 The State Fabric provides fault-tolerant session management with checkpointing, versioning, and cross-agent synchronization.
 
@@ -979,7 +1083,7 @@ Agent A ──state_change──→ Event Bus ──state_change──→ Agent 
                           │  State DB  │
                           └───────────┘
 
-Protocol: CRDT-based conflict resolution
+**Protocol:** CRDT-based conflict resolution
 Convergence: Within 3 propagation rounds
 Latency: <10ms per hop
 Conflicts: auto-merge via last-writer-wins with vector clock
@@ -1010,19 +1114,21 @@ Commands:
   /replay quit                → exit replay mode
 ```
 
+
 ---
 
-## Layer 11: Network & Security Resilience
 
-### Zero Disruptions → Graceful Degradation
+## 🛠️ Layer 11: **Network & Security Resilience**
 
-### Opus Timeout → Sonnet Fallback
+### 🔹 Zero Disruptions → Graceful Degradation
 
-### 100% State Recovery
+### 🔹 Opus Timeout → Sonnet Fallback
 
-### Event Log Stream → JSONL
+### 🔹 100% State Recovery
 
-### Power Loss Recovery → Type `continue` → Resume from Last Line
+### 🔹 Event Log Stream → JSONL
+
+### 🔹 Power Loss Recovery → Type `continue` → Resume from Last Line
 
 The resilience layer ensures zero-downtime operation through graceful degradation, model fallback chains, and complete state recovery.
 
@@ -1111,17 +1217,19 @@ Guarantee: Every committed operation survives crash
 6. Continue working with zero data loss
 ```
 
+
 ---
 
-## Layer 12: Observability & Monitoring (NEW)
 
-### OpenTelemetry → Traces, Metrics, Logs
+## 🛠️ Layer 12: **Observability & Monitoring (NEW)**
 
-### Prometheus Exporter
+### 🔹 OpenTelemetry → Traces, Metrics, Logs
 
-### Jaeger Tracing → End-to-End Latency Visualization
+### 🔹 Prometheus Exporter
 
-### Structured Logging → JSONL with trace_id, span_id
+### 🔹 Jaeger Tracing → End-to-End Latency Visualization
+
+### 🔹 Structured Logging → JSONL with trace_id, span_id
 
 Full observability with OpenTelemetry, Prometheus metrics, and Jaeger distributed tracing.
 
@@ -1175,7 +1283,7 @@ logger.emit({
 **Prometheus Exporter:**
 
 ```yaml
-# prometheus.yml
+# 🚀 prometheus.yml
 scrape_configs:
   - job_name: 'irazor-ai'
     scrape_interval: 5s
@@ -1186,7 +1294,27 @@ scrape_configs:
 **Exported Metrics:**
 
 | Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
+|
+---
+
+---
+--|
+---
+
+---
+|
+---
+
+---
+--|
+---
+
+---
+
+---
+
+---
+-|
 | razor_requests_total | Counter | agent, status, model | Total requests processed |
 | razor_token_usage | Counter | model, agent, operation | Total tokens consumed |
 | razor_fallback_count | Counter | from, to, reason | Model fallback count |
@@ -1233,19 +1361,21 @@ scrape_configs:
 {"ts":"2026-05-25T10:00:02.000Z","level":"ERROR","trace_id":"9b4c2d8e","span_id":"f5e6d7c8","agent":"tool","action":"npm_install","package":"unknown-pkg","error":"404 Not Found","recoverable":true}
 ```
 
+
 ---
 
-## Layer 13: Rate Limiting & Cost Control (NEW)
 
-### Token Budget per Session → Budget: 100K Tokens
+## 🛠️ Layer 13: **Rate Limiting & Cost Control (NEW)**
 
-### Rate Limit → 100 req/min per User
+### 🔹 Token Budget per Session → Budget: 100K Tokens
 
-### Cost Alert → Email/Webhook at 80% Budget
+### 🔹 Rate Limit → 100 req/min per User
 
-### Auto-Fallback to Cache-Only Mode When Budget Exceeded
+### 🔹 Cost Alert → Email/Webhook at 80% Budget
 
-### Per-Model Cost Tracking (Opus = Expensive, Sonnet = Cheaper)
+### 🔹 Auto-Fallback to Cache-Only Mode When Budget Exceeded
+
+### 🔹 Per-Model Cost Tracking (Opus = Expensive, Sonnet = Cheaper)
 
 Controls costs and prevents abuse through token budgets, rate limiting, and automated cost alerts.
 
@@ -1355,7 +1485,39 @@ interface CostAlert {
 **Per-Model Cost Tracking:**
 
 | Model | Cost per 1K tokens | Budget Impact | Priority |
-|-------|-------------------|---------------|----------|
+|
+---
+
+---
+-|
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+-|
+---
+
+---
+
+---
+
+---
+
+---
+|
+---
+
+---
+
+---
+-|
 | Opus | $0.015 | High (45%) | Critical tasks only |
 | Sonnet | $0.003 | Medium (30%) | Standard tasks |
 | Haiku | $0.00025 | Low (15%) | Simple tasks |
@@ -1371,17 +1533,19 @@ Budget remaining < 5%   → Read-only mode, queries only
 Budget exhausted        → "Budget exhausted. Resets in 4h."
 ```
 
+
 ---
 
-## Layer 14: Optional Human Approval Gate (NEW)
 
-### Critical Operations → requires_approval: true
+## 🛠️ Layer 14: **Optional Human Approval Gate (NEW)**
 
-### Approval Queue Dashboard
+### 🔹 Critical Operations → requires_approval: true
 
-### Timeout → Auto-Reject After 5 Mins
+### 🔹 Approval Queue Dashboard
 
-### Audit Log → Who Approved What & When
+### 🔹 Timeout → Auto-Reject After 5 Mins
+
+### 🔹 Audit Log → Who Approved What & When
 
 The human approval gate provides a safety layer for critical operations with a full audit trail.
 
@@ -1541,9 +1705,11 @@ interface ApprovalTimeout {
 }
 ```
 
+
 ---
 
-## Continuity: HCP+ (with Fallback & Recovery)
+
+## 📊 Continuity: HCP+ (with Fallback & Recovery)
 
 The HCP+ (High Continuity Protocol) ensures uninterrupted operation across all layers.
 
@@ -1562,18 +1728,32 @@ L7: Recovery   → Automatic replay from last checkpoint
 **HCP+ Guarantees:**
 
 | Property | Guarantee |
-|----------|-----------|
+|
+---
+
+---
+
+---
+-|
+---
+
+---
+
+---
+--|
 | Uptime | 99.99% (excluding underlying model API) |
 | Data loss | Zero (WAL + checkpoint + log) |
 | Recovery time | <100ms from checkpoint |
 | Fallback latency | <500ms (Opus → Sonnet) |
 | Session continuity | 100% (crash → continue) |
 
+
 ---
+
 
 ## Flows
 
-### Response Flow
+### 🔹 Response Flow
 
 ```
 User Prompt
@@ -1601,7 +1781,7 @@ User Prompt
 Stream Result
 ```
 
-### Questions Flow
+### 🔹 Questions Flow
 
 ```
 User Question
@@ -1625,7 +1805,7 @@ User Question
 Answer
 ```
 
-### Other Questions Flow (Fallback)
+### 🔹 Other Questions Flow (Fallback)
 
 ```
 Unrecognized Input
@@ -1649,7 +1829,7 @@ Unrecognized Input
 Best-guess Response + "Was this helpful?"
 ```
 
-### Others Flow (Catch-All)
+### 🔹 Others Flow (Catch-All)
 
 ```
 Unprocessable/Edge Case Input
@@ -1669,7 +1849,7 @@ Response: "I couldn't process that. Could you rephrase?"
 [Layer 12: Observability] → metric: razor_other_count++
 ```
 
-### Observability Telemetry Flow
+### 🔹 Observability Telemetry Flow
 
 ```
 Every Operation
@@ -1694,7 +1874,7 @@ Dashboards:
   • Budget usage %
 ```
 
-### Approval Queue Flow
+### 🔹 Approval Queue Flow
 
 ```
 Critical Operation Detected
@@ -1729,11 +1909,13 @@ Critical Operation Detected
 └─────────────────────────────────┘
 ```
 
+
 ---
+
 
 ## Appendix: Model & Architecture
 
-### New Cybersecurity Model: IRazor AI-Secure
+### 🔹 New Cybersecurity Model: IRazor AI-Secure
 
 A new specialized model variant focused on cybersecurity analysis and legacy codebase remediation.
 
@@ -1753,7 +1935,19 @@ A new specialized model variant focused on cybersecurity analysis and legacy cod
 **Capability Matrix:**
 
 | Capability | Score |
-|------------|-------|
+|
+---
+
+---
+
+---
+
+---
+|
+---
+
+---
+-|
 | Vulnerability detection (known CVEs) | 98.2% |
 | Zero-day pattern recognition | 91.5% |
 | Legacy code refactoring (20+ year old codebases) | 94.7% |
@@ -1808,11 +2002,13 @@ model:
     secure_gen: 97.1%
 ```
 
+
 ---
+
 
 ## Appendix: Complete Configuration
 
-### Full settings.json
+### 🔹 Full settings.json
 
 ```json
 {
@@ -1978,7 +2174,9 @@ model:
 }
 ```
 
+
 ---
+
 
 ## Summary
 
@@ -2007,6 +2205,8 @@ IRazor AI IQD2R a **14-layer autonomous agentic coding runtime** with:
 **Total operational reliability:** 100% state recovery guarantee.
 **Total cost control:** per-model tracking with automatic budget enforcement.
 
+
 ---
+
 
 *IRazor AI IQD2R — Not just an agent. A complete autonomous coding infrastructure.*
