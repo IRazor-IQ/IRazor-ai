@@ -655,23 +655,9 @@ interface WriteQueue {
 **Preloaded Modules:**
 
 Modules are preloaded into a V8 code cache for instant tool spawn:
-
+```
 | Module | Load Time | Memory |
-|
----
-
----
---|
----
-
----
-
----
---|
----
-
----
---|
+|------------------------------|
 | file-system | <1ms | 0KB (code cache) |
 | http-client | <1ms | 0KB (code cache) |
 | sql-query | <1ms | 0KB (code cache) |
@@ -679,6 +665,8 @@ Modules are preloaded into a V8 code cache for instant tool spawn:
 | diff-patch | <1ms | 0KB (code cache) |
 
 Total preloaded memory overhead: **0MB** (code caching via V8 snapshot). All modules loaded from mmap'd cache files.
+
+```
 
 **Tool Sandboxing:**
 
