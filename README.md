@@ -104,10 +104,6 @@ The system focuses on practical autonomous execution rather than raw benchmark m
 
  **Infrastructure & Runtime Features**
 
-**NEW add: 14 additional infrastructure layers**
-
-**(Claw-code-free-full • no Anthropic API key required 🔥)**
-
 - **50-component runtime orchestration**
 - **Dynamic Multi-Component Activation (MCA)**
 - **Reflection and self-repair loops**
@@ -122,6 +118,10 @@ The system focuses on practical autonomous execution rather than raw benchmark m
 - **Agent-style workflow chaining**
 - **Lightweight mobile deployment**
 - **Android WebView optimization**
+
+**NEW**
+
+IQD2R : *https://github.com/IRazor-IQ/IRazor-ai/tree/main/app/src/main/assets/Claw-code*
 
 ---
 
