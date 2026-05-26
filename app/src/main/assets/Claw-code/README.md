@@ -880,44 +880,17 @@ process.on('warning', (warning) => {
 
 **Compression Benchmarks:**
 
-| Context Type | Raw Size | Compressed | Ratio | Speed |
-|
----
+ Project structure (8KB) / 8KB / 320B / 25:1 / 80μs 
+ 
+Dependency graph / 64KB / 3.2KB / 20:1 / 320μs 
 
----
+Recent edits / 16KB / 1.8KB / 9:1 /150μs 
 
----
+ npm registry response / 128KB | 12KB | 10:1 1.2ms 
+ 
+Session state / 32KB / 640B 50:1 / 200μs /
 
----
--|
----
-
----
-
----
--|
----
-
----
-
----
-
----
-|
----
-
----
--|
----
-
----
--|
-| Project structure (8KB) | 8KB | 320B | 25:1 | 80μs |
-| Dependency graph | 64KB | 3.2KB | 20:1 | 320μs |
-| Recent edits | 16KB | 1.8KB | 9:1 | 150μs |
-| npm registry response | 128KB | 12KB | 10:1 | 1.2ms |
-| Session state | 32KB | 640B | 50:1 | 200μs |
-| Agent conversation | 256KB | 18KB | 14:1 | 2.8ms |
+ Agent conversation / 256KB / 18KB / 14:1 / 2.8ms 
 
 
 ---
@@ -1626,25 +1599,13 @@ L7: Recovery   → Automatic replay from last checkpoint
 
 **HCP+ Guarantees:**
 
-| Property | Guarantee |
-|
----
+**Property | Guarantee**
 
----
-
----
--|
----
-
----
-
----
---|
-| Uptime | 99.99% (excluding underlying model API) |
-| Data loss | Zero (WAL + checkpoint + log) |
-| Recovery time | <100ms from checkpoint |
-| Fallback latency | <500ms (Opus → Sonnet) |
-| Session continuity | 100% (crash → continue) |
+Uptime | 99.99% (excluding underlying model API) 
+Data loss | Zero (WAL + checkpoint + log) |
+Recovery time | <100ms from checkpoint |
+Fallback latency | <500ms (Opus → Sonnet) |
+Session continuity | 100% (crash → continue) 
 
 
 ---
