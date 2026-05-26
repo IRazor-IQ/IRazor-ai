@@ -1,6 +1,6 @@
-# 🚀 IRazor AI — Autonomous Agentic Coding Runtime IQD2R
+# IRazor AI — Autonomous Agentic Coding Runtime IQD2R
 
-## 🏗️ MASTER BLUEPRINT (1–14)
+## MASTER BLUEPRINT (1–14)
 
 ```
 Layers:  1   2   3   4   5   6   7   8   9  10  11  12  13  14
@@ -35,9 +35,9 @@ Human Gate ───────────────────────
 ---
 
 
-## 🛠️ Layer 1: **Type Configuration**
+## Layer 1: **Type Configuration**
 
-### 🔹 IRazorAi.md Scanner → Schema & Rules Injection
+### IRazorAi.md Scanner → Schema & Rules Injection
 
 The Type Configuration layer defines the static schema that governs all agent behavior. Every prompt, tool call, and agent output passes through a strict type validator before execution proceeds.
 
@@ -107,9 +107,9 @@ interface TypeConfig {
 ---
 
 
-## 🛠️ Layer 2: **Streaming Intent Interface**
+## Layer 2: **Streaming Intent Interface**
 
-### 🔹 Real-Time Intent Streaming
+### Real-Time Intent Streaming
 
 The streaming layer provides low-latency, token-by-token parsing of user prompts with continuous intent refinement.
 
@@ -159,17 +159,7 @@ Raw Tokens
 **Low-Latency Parsing:**
 
 | Metric | Target | P95 |
-|
----
-
----
---|
----
-
----
---|
----
---|
+|---|---|---|
 | First token latency | <50ms | <120ms |
 | Intent classification | <100ms | <250ms |
 | Full stream TTFB | <200ms | <400ms |
@@ -187,9 +177,9 @@ Reclassification frequency: every 8 tokens or 50ms, whichever comes first.
 ---
 
 
-## 🛠️ Layer 3: **Hook System**
+## Layer 3: **Hook System**
 
-### 🔹 UserPromptSubmit → Pre-Process Trigger
+### UserPromptSubmit → Pre-Process Trigger
 
 The hook system provides middleware-ready interception points for validation, enrichment, transformation, and routing.
 
@@ -275,9 +265,9 @@ pre:enrich
 ---
 
 
-## 🛠️ Layer 4: **Silent Auto-Approval (with Optional Human Gate)**
+## Layer 4: **Silent Auto-Approval (with Optional Human Gate)**
 
-### 🔹 AI Classifier → MATCH: settings.json
+### AI Classifier → MATCH: settings.json
 
 The auto-approval layer uses an AI classifier to determine operation risk and either silently proceed or gate behind human approval.
 
@@ -369,7 +359,7 @@ User: "rm -rf / --no-preserve-root"
     ↓
 Classifier → score: 0.98 → ABOVE gate threshold
     ↓
-Gate: "⚠️ This operation requires approval.
+Gate: "This operation requires approval.
          Operation: rm -rf /
          Risk: CRITICAL (0.98)
          Approve? (Y/N) [timeout: 5min]"
@@ -381,9 +371,9 @@ User: Y → execute | N → rejected | timeout → auto-reject
 ---
 
 
-## 🛠️ Layer 5: **Prefix Memory (Cache-First)**
+## Layer 5: **Prefix Memory (Cache-First)**
 
-### 🔹 Cached Tokens → Near-Zero Cost
+### Cached Tokens → Near-Zero Cost
 
 Prefix memory implements a cache-first approach where repeated prompt prefixes are cached and reused at near-zero cost.
 
@@ -482,13 +472,13 @@ Tier 3 (low): evict first — one-shot requests, temp context
 ---
 
 
-## 🛠️ Layer 6: **Sub-Agent Orchestration**
+## Layer 6: **Sub-Agent Orchestration**
 
-### 🔹 Frontend Agent → UI & State
+### Frontend Agent → UI & State
 
-### 🔹 Backend Agent → Logic & Services
+### Backend Agent → Logic & Services
 
-### 🔹 QA Agent → Validation & Tests
+### QA Agent → Validation & Tests
 
 The sub-agent orchestration layer provides a centralized dispatcher with decoupled execution across specialized agents.
 
@@ -586,13 +576,13 @@ Dispatcher:
 ---
 
 
-## 🛠️ Layer 7: **Tool Execution Engine**
+## Layer 7: **Tool Execution Engine**
 
-### 🔹 Parallel Reads (10X Speed) → Context & Domains
+### Parallel Reads (10X Speed) → Context & Domains
 
-### 🔹 Sequential Writes (1X Security) → Race Condition Prevention
+### Sequential Writes (1X Security) → Race Condition Prevention
 
-### 🔹 Preloaded Modules (MB 0) → Fast Tool Spawn
+### Preloaded Modules (MB 0) → Fast Tool Spawn
 
 The tool execution engine provides high-performance, safe tool execution with parallel reads and sequential writes.
 
@@ -722,13 +712,13 @@ Total preloaded memory overhead: **0MB** (code caching via V8 snapshot). All mod
 ---
 
 
-## 🛠️ Layer 8: **MCP Servers (Model Context Protocol)**
+## Layer 8: **MCP Servers (Model Context Protocol)**
 
-### 🔹 sqlite-mcp-server :: Connected
+### sqlite-mcp-server :: Connected
 
-### 🔹 Efficient File-Mode Exit & Data Querying
+### Efficient File-Mode Exit & Data Querying
 
-### 🔹 Context Pooling Across Agents
+### Context Pooling Across Agents
 
 MCP servers provide standardized data access and context pooling across all agents in the system.
 
@@ -748,33 +738,13 @@ MCP servers provide standardized data access and context pooling across all agen
 **Connected MCP Servers:**
 
 | Server | Status | Protocol | Pool Size |
-|
----
-
----
---|
----
-
----
---|
----
-
----
-
----
--|
----
-
----
-
----
---|
+|---|---|---|---|
 | sqlite-mcp-server | Connected | stdio | 5 |
 | filesystem-mcp | Connected | stdio | 3 |
 | search-mcp | Connected | HTTP/SSE | 2 |
 | browser-mcp | Connected | HTTP/SSE | 2 |
 
-**sqlite-mcp-server Configuration:**
+sqlite-mcp-server Configuration:**
 
 ```json
 {
@@ -842,13 +812,13 @@ sqlite-mcp:
 ---
 
 
-## 🛠️ Layer 9: **Contextual Compression Algorithms**
+## Layer 9: **Contextual Compression Algorithms**
 
-### 🔹 KB 8 → Compressed Summary for Core Work
+### KB 8 → Compressed Summary for Core Work
 
-### 🔹 npm install Completed → Registry Fetch & Linking
+### npm install Completed → Registry Fetch & Linking
 
-### 🔹 Deprecated Warnings Suppressed → Clean Execution
+### Deprecated Warnings Suppressed → Clean Execution
 
 Contextual compression reduces token usage while preserving semantic integrity across all agent operations.
 
@@ -976,17 +946,17 @@ process.on('warning', (warning) => {
 ---
 
 
-## 🛠️ Layer 10: **State Fabric & Session Manager (NEW)**
+## Layer 10: **State Fabric & Session Manager (NEW)**
 
-### 🔹 Session Checkpointing → Every 10 Tokens
+### Session Checkpointing → Every 10 Tokens
 
-### 🔹 State Versioning → Rollback to Any Prior State
+### State Versioning → Rollback to Any Prior State
 
-### 🔹 Idle Session Freeze → Zero Memory Leak
+### Idle Session Freeze → Zero Memory Leak
 
-### 🔹 Cross-Agent State Sync → Eventual Consistency
+### Cross-Agent State Sync → Eventual Consistency
 
-### 🔹 Session Replay → Debug Mode
+### Session Replay → Debug Mode
 
 The State Fabric provides fault-tolerant session management with checkpointing, versioning, and cross-agent synchronization.
 
@@ -1118,17 +1088,17 @@ Commands:
 ---
 
 
-## 🛠️ Layer 11: **Network & Security Resilience**
+## Layer 11: **Network & Security Resilience**
 
-### 🔹 Zero Disruptions → Graceful Degradation
+### Zero Disruptions → Graceful Degradation
 
-### 🔹 Opus Timeout → Sonnet Fallback
+### Opus Timeout → Sonnet Fallback
 
-### 🔹 100% State Recovery
+### 100% State Recovery
 
-### 🔹 Event Log Stream → JSONL
+### Event Log Stream → JSONL
 
-### 🔹 Power Loss Recovery → Type `continue` → Resume from Last Line
+### Power Loss Recovery → Type `continue` → Resume from Last Line
 
 The resilience layer ensures zero-downtime operation through graceful degradation, model fallback chains, and complete state recovery.
 
@@ -1221,15 +1191,15 @@ Guarantee: Every committed operation survives crash
 ---
 
 
-## 🛠️ Layer 12: **Observability & Monitoring (NEW)**
+## Layer 12: **Observability & Monitoring (NEW)**
 
-### 🔹 OpenTelemetry → Traces, Metrics, Logs
+### OpenTelemetry → Traces, Metrics, Logs
 
-### 🔹 Prometheus Exporter
+### Prometheus Exporter
 
-### 🔹 Jaeger Tracing → End-to-End Latency Visualization
+### Jaeger Tracing → End-to-End Latency Visualization
 
-### 🔹 Structured Logging → JSONL with trace_id, span_id
+### Structured Logging → JSONL with trace_id, span_id
 
 Full observability with OpenTelemetry, Prometheus metrics, and Jaeger distributed tracing.
 
@@ -1283,7 +1253,7 @@ logger.emit({
 **Prometheus Exporter:**
 
 ```yaml
-# 🚀 prometheus.yml
+# prometheus.yml
 scrape_configs:
   - job_name: 'irazor-ai'
     scrape_interval: 5s
@@ -1365,17 +1335,17 @@ scrape_configs:
 ---
 
 
-## 🛠️ Layer 13: **Rate Limiting & Cost Control (NEW)**
+## Layer 13: **Rate Limiting & Cost Control (NEW)**
 
-### 🔹 Token Budget per Session → Budget: 100K Tokens
+### Token Budget per Session → Budget: 100K Tokens
 
-### 🔹 Rate Limit → 100 req/min per User
+### Rate Limit → 100 req/min per User
 
-### 🔹 Cost Alert → Email/Webhook at 80% Budget
+### Cost Alert → Email/Webhook at 80% Budget
 
-### 🔹 Auto-Fallback to Cache-Only Mode When Budget Exceeded
+### Auto-Fallback to Cache-Only Mode When Budget Exceeded
 
-### 🔹 Per-Model Cost Tracking (Opus = Expensive, Sonnet = Cheaper)
+### Per-Model Cost Tracking (Opus = Expensive, Sonnet = Cheaper)
 
 Controls costs and prevents abuse through token budgets, rate limiting, and automated cost alerts.
 
@@ -1537,15 +1507,15 @@ Budget exhausted        → "Budget exhausted. Resets in 4h."
 ---
 
 
-## 🛠️ Layer 14: **Optional Human Approval Gate (NEW)**
+## Layer 14: **Optional Human Approval Gate (NEW)**
 
-### 🔹 Critical Operations → requires_approval: true
+### Critical Operations → requires_approval: true
 
-### 🔹 Approval Queue Dashboard
+### Approval Queue Dashboard
 
-### 🔹 Timeout → Auto-Reject After 5 Mins
+### Timeout → Auto-Reject After 5 Mins
 
-### 🔹 Audit Log → Who Approved What & When
+### Audit Log → Who Approved What & When
 
 The human approval gate provides a safety layer for critical operations with a full audit trail.
 
@@ -1709,7 +1679,7 @@ interface ApprovalTimeout {
 ---
 
 
-## 📊 Continuity: HCP+ (with Fallback & Recovery)
+## Continuity: HCP+ (with Fallback & Recovery)
 
 The HCP+ (High Continuity Protocol) ensures uninterrupted operation across all layers.
 
@@ -1753,7 +1723,7 @@ L7: Recovery   → Automatic replay from last checkpoint
 
 ## Flows
 
-### 🔹 Response Flow
+### Response Flow
 
 ```
 User Prompt
@@ -1781,7 +1751,7 @@ User Prompt
 Stream Result
 ```
 
-### 🔹 Questions Flow
+### Questions Flow
 
 ```
 User Question
@@ -1805,7 +1775,7 @@ User Question
 Answer
 ```
 
-### 🔹 Other Questions Flow (Fallback)
+### Other Questions Flow (Fallback)
 
 ```
 Unrecognized Input
@@ -1829,7 +1799,7 @@ Unrecognized Input
 Best-guess Response + "Was this helpful?"
 ```
 
-### 🔹 Others Flow (Catch-All)
+### Others Flow (Catch-All)
 
 ```
 Unprocessable/Edge Case Input
@@ -1849,7 +1819,7 @@ Response: "I couldn't process that. Could you rephrase?"
 [Layer 12: Observability] → metric: razor_other_count++
 ```
 
-### 🔹 Observability Telemetry Flow
+### Observability Telemetry Flow
 
 ```
 Every Operation
@@ -1874,7 +1844,7 @@ Dashboards:
   • Budget usage %
 ```
 
-### 🔹 Approval Queue Flow
+### Approval Queue Flow
 
 ```
 Critical Operation Detected
@@ -1915,7 +1885,7 @@ Critical Operation Detected
 
 ## Appendix: Model & Architecture
 
-### 🔹 New Cybersecurity Model: IRazor AI-Secure
+### New Cybersecurity Model: IRazor AI-Secure
 
 A new specialized model variant focused on cybersecurity analysis and legacy codebase remediation.
 
@@ -2008,7 +1978,7 @@ model:
 
 ## Appendix: Complete Configuration
 
-### 🔹 Full settings.json
+### Full settings.json
 
 ```json
 {
