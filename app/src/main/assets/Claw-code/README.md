@@ -436,17 +436,6 @@ interface PrefixCacheEntry {
 **Sub-Second Context Recall:**
 
 | Operation | Time |
-|
----
-
----
-
----
---|
----
-
----
-|
 | Cache lookup (hot) | <1μs |
 | Cache lookup (cold) | <50μs |
 | Full rehydration | <100ms |
@@ -1262,28 +1251,9 @@ scrape_configs:
 ```
 
 **Exported Metrics:**
-
+```
 | Metric | Type | Labels | Description |
-|
----
 
----
---|
----
-
----
-|
----
-
----
---|
----
-
----
-
----
-
----
 -|
 | razor_requests_total | Counter | agent, status, model | Total requests processed |
 | razor_token_usage | Counter | model, agent, operation | Total tokens consumed |
@@ -1294,6 +1264,7 @@ scrape_configs:
 | razor_memory_usage | Gauge | type | Current memory usage in bytes |
 | razor_active_sessions | Gauge | — | Number of active sessions |
 | razor_queue_depth | Gauge | queue | Current queue depth |
+```
 
 **Jaeger Tracing:**
 
@@ -1454,44 +1425,14 @@ interface CostAlert {
 
 **Per-Model Cost Tracking:**
 
-| Model | Cost per 1K tokens | Budget Impact | Priority |
-|
----
-
----
--|
----
-
----
-
----
-
----
-
----
-
----
--|
----
-
----
-
----
-
----
-
----
-|
----
-
----
-
----
+| Model | Cost per 1K tokens | Budget Impact | Priority
+----
 -|
 | Opus | $0.015 | High (45%) | Critical tasks only |
 | Sonnet | $0.003 | Medium (30%) | Standard tasks |
 | Haiku | $0.00025 | Low (15%) | Simple tasks |
 | Cache-only | $0.00001 | Minimal (10%) | Fallback |
+----
 
 **Auto-Fallback to Cache-Only Mode:**
 
@@ -1902,22 +1843,8 @@ A new specialized model variant focused on cybersecurity analysis and legacy cod
 └──────────────────────────────────────────────────────────┘
 ```
 
-**Capability Matrix:**
+** Capability Matrix: **
 
-| Capability | Score |
-|
----
-
----
-
----
-
----
-|
----
-
----
--|
 | Vulnerability detection (known CVEs) | 98.2% |
 | Zero-day pattern recognition | 91.5% |
 | Legacy code refactoring (20+ year old codebases) | 94.7% |
