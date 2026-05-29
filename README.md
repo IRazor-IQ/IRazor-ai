@@ -48,11 +48,6 @@ Development relied primarily on iterative human-guided prompt compression and ru
 - Compression-focused runtime design allows higher component density without significantly increasing token usage.
 
 ---
-**windows - Mac - Linux in website**
-
-**tomorrow**
-
----
 
 ## Post-Training Runtime Refinement
 
