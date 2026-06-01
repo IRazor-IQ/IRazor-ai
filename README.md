@@ -31,14 +31,7 @@ Development relied primarily on iterative human-guided prompt compression and ru
 - IRazor AI replaces large prompt-template scaffolds (~7,800 lines) with a compressed runtime-oriented orchestration layer.
 - The system uses Multi-Component Activation (MCA) where reasoning modules activate dynamically depending on task structure and execution state.
 - The architecture is optimized for lightweight deployment inside constrained mobile environments while preserving broad coding capability.
-
----
-<p align="center">
-    <a href="https://github.com/anus4Q/IRazor-ai/blob/f0a2596fd85227a7db15c2786e9d746ecb4f9b70/Comparison.png">
-        <img height="150px" src="https://github.com/anus4Q/IRazor-ai/blob/f0a2596fd85227a7db15c2786e9d746ecb4f9b70/Comparison.png" />
-    </a>
-</p>
-
+  
 ---
 
 ## Prompt Compression & Context Efficiency
