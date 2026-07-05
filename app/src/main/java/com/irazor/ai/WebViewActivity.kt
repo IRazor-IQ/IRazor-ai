@@ -35,7 +35,7 @@ class WebViewActivity : AppCompatActivity() {
         private const val API_KEY_PREF  = "api_key_enc"   
         private const val PREF_FILE     = "irazor_prefs"
     }
-
+    
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -109,15 +109,20 @@ class WebViewActivity : AppCompatActivity() {
             domStorageEnabled                = true
             allowFileAccess                  = true
             allowContentAccess               = true
+            // SECURITY: disabled — universal file access lets a local page
+            // reach across origins (any file:// or http(s):// resource),
+            // a known WebView privilege-escalation vector.
             @Suppress("DEPRECATION")
-            allowUniversalAccessFromFileURLs = true
+            allowUniversalAccessFromFileURLs = false
             @Suppress("DEPRECATION")
-            allowFileAccessFromFileURLs      = true
+            allowFileAccessFromFileURLs      = false
             cacheMode                        = WebSettings.LOAD_DEFAULT
             databaseEnabled                  = true
             loadsImagesAutomatically         = true
             mediaPlaybackRequiresUserGesture = false
-            mixedContentMode                 = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            // SECURITY: only https:// APIs are used — never allow silent
+            // downgrade to unencrypted http:// content.
+            mixedContentMode                 = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             useWideViewPort                  = true
             loadWithOverviewMode             = true
             setSupportZoom(false)
@@ -243,10 +248,19 @@ class WebViewActivity : AppCompatActivity() {
     }
 
     private fun loadApp() {
-        val indexFile = File(filesDir, "${MainActivity.WEB_ROOT_DIR}/index.html")
+        val webRoot   = File(filesDir, "${MainActivity.WEB_ROOT_DIR}")
+        val indexFile = File(webRoot, "index.html")
+
         if (!indexFile.exists()) {
-            webView.loadData(buildFallbackHtml(), "text/html", "UTF-8"); return
+            android.util.Log.i("IRazor", "index.html not found — attempting bundle.enc decryption…")
+            val ok = MainActivity.decryptBundle(this, webRoot)
+            if (!ok || !indexFile.exists()) {
+                android.util.Log.e("IRazor", "Bundle decryption failed in WebViewActivity")
+                webView.loadData(buildFallbackHtml(), "text/html", "UTF-8")
+                return
+            }
         }
+
         webView.loadUrl("file://${indexFile.absolutePath}")
     }
 
@@ -302,7 +316,7 @@ class WebViewActivity : AppCompatActivity() {
 
     @Deprecated("Needed for pre-API33")
     override fun onBackPressed() {
-        if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
+        if (webView.canGoBack()) webView.goBack() else moveTaskToBack(true)
     }
 
     private fun buildFallbackHtml() = """

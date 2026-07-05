@@ -1,24 +1,37 @@
 package com.irazor.ai
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.Signature
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.OpenableColumns
+import android.provider.Settings
 import android.util.Base64
 import android.view.View
-import android.view.ViewGroup
-import android.view.animation.DecelerateInterpolator
 import android.webkit.*
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.tasks.Task
 import kotlinx.coroutines.*
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.security.MessageDigest
+import java.security.cert.CertificateFactory
+import java.security.spec.KeySpec
 import java.util.zip.ZipInputStream
 import javax.crypto.Cipher
 import javax.crypto.SecretKeyFactory
@@ -26,46 +39,198 @@ import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 
+/**
+ * Encrypts/decrypts small secrets (API keys) using a hardware-backed
+ * (or software-backed, if the device lacks StrongBox/TEE) AES-256-GCM
+ * key stored in the Android Keystore. The raw key material is generated
+ * inside the keystore and is never exported, unlike a hardcoded XOR key
+ * that ships inside the APK and can be read by anyone who decompiles it.
+ */
+private object SecureKeyStore {
+    private const val ANDROID_KEYSTORE = "AndroidKeyStore"
+    private const val KEY_ALIAS        = "irazor_api_key_v1"
+    private const val TRANSFORMATION   = "AES/GCM/NoPadding"
+    private const val GCM_TAG_BITS     = 128
+    private const val GCM_IV_BYTES     = 12
+
+    private fun getOrCreateSecretKey(): javax.crypto.SecretKey {
+        val keyStore = java.security.KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+        (keyStore.getKey(KEY_ALIAS, null) as? javax.crypto.SecretKey)?.let { return it }
+
+        val keyGenerator = javax.crypto.KeyGenerator.getInstance(
+            android.security.keystore.KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE
+        )
+        val spec = android.security.keystore.KeyGenParameterSpec.Builder(
+            KEY_ALIAS,
+            android.security.keystore.KeyProperties.PURPOSE_ENCRYPT or
+                android.security.keystore.KeyProperties.PURPOSE_DECRYPT
+        )
+            .setBlockModes(android.security.keystore.KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(android.security.keystore.KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setKeySize(256)
+            .build()
+        keyGenerator.init(spec)
+        return keyGenerator.generateKey()
+    }
+
+    fun encrypt(plain: String): String {
+        if (plain.isEmpty()) return ""
+        return try {
+            val cipher = javax.crypto.Cipher.getInstance(TRANSFORMATION)
+            cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, getOrCreateSecretKey())
+            val iv = cipher.iv // 12 bytes for GCM
+            val ct = cipher.doFinal(plain.toByteArray(Charsets.UTF_8))
+            Base64.encodeToString(iv + ct, Base64.NO_WRAP)
+        } catch (e: Exception) {
+            android.util.Log.e("IRazor", "SecureKeyStore.encrypt failed: ${e.message}")
+            ""
+        }
+    }
+
+    fun decrypt(encoded: String): String {
+        if (encoded.isBlank()) return ""
+        return try {
+            val combined = Base64.decode(encoded, Base64.NO_WRAP)
+            if (combined.size <= GCM_IV_BYTES) return ""
+            val iv = combined.copyOfRange(0, GCM_IV_BYTES)
+            val ct = combined.copyOfRange(GCM_IV_BYTES, combined.size)
+            val cipher = javax.crypto.Cipher.getInstance(TRANSFORMATION)
+            cipher.init(
+                javax.crypto.Cipher.DECRYPT_MODE,
+                getOrCreateSecretKey(),
+                javax.crypto.spec.GCMParameterSpec(GCM_TAG_BITS, iv)
+            )
+            String(cipher.doFinal(ct), Charsets.UTF_8)
+        } catch (_: Exception) {
+            "" // wrong format (e.g. legacy XOR) — caller falls back
+        }
+    }
+}
+
 class MainActivity : AppCompatActivity() {
 
     companion object {
         const val PREF_FILE              = "irazor_prefs"
-        const val PREF_INSTALLED_VERSION = "installed_version"
         const val PREF_LANG              = "app_lang"
-        private const val BUNDLE_VERSION = 7                    
-        private const val BUNDLE_ASSET_ENC = "bundle.enc"
-        private const val BUNDLE_ASSET_DEV = "index.html"
         const val WEB_ROOT_DIR           = "irazor_web"
 
+        // ── API key storage — Android Keystore-backed AES-256-GCM ──────────
+        // Replaces the old reversible XOR obfuscation. The AES key never
+        // leaves the device's secure hardware (or software) keystore, so
+        // even a rooted-device / decompiled-APK attacker cannot recover it
+        // without also having the key material, which is not stored anywhere
+        // in the app. Legacy XOR-encoded values are migrated transparently.
+        private val LEGACY_XOR_KEY = byteArrayOf(0x4B, 0x72, 0x61, 0x7A, 0x6F, 0x72, 0x21)
 
-        private const val AES_PASSWORD = "IRazorSecretKey2025!"
-        private const val AES_SALT     = "IRazorSalt1234567890"
-        private const val PBKDF2_ITER  = 65536
-        private const val KEY_BITS     = 256
-
-
-        private val XOR_KEY = byteArrayOf(0x4B, 0x72, 0x61, 0x7A, 0x6F, 0x72, 0x21)
-
-        fun encodeApiKey(raw: String): String {
-            val bytes = raw.toByteArray(Charsets.UTF_8)
-            val xored = ByteArray(bytes.size) { i ->
-                (bytes[i].toInt() xor XOR_KEY[i % XOR_KEY.size].toInt()).toByte()
-            }
-            return Base64.encodeToString(xored, Base64.NO_WRAP)
-        }
-
-        fun decodeApiKey(encoded: String): String {
-            if (encoded.isBlank()) return ""
+        private fun legacyXorDecode(encoded: String): String? {
+            if (encoded.isBlank()) return null
             return try {
                 val xored = Base64.decode(encoded, Base64.NO_WRAP)
                 val bytes = ByteArray(xored.size) { i ->
-                    (xored[i].toInt() xor XOR_KEY[i % XOR_KEY.size].toInt()).toByte()
+                    (xored[i].toInt() xor LEGACY_XOR_KEY[i % LEGACY_XOR_KEY.size].toInt()).toByte()
                 }
                 String(bytes, Charsets.UTF_8)
-            } catch (_: Exception) { "" }
+            } catch (_: Exception) { null }
         }
 
+        fun encodeApiKey(raw: String): String = SecureKeyStore.encrypt(raw)
 
+        /**
+         * Decodes a stored key. Handles three cases:
+         *  1. New Keystore-encrypted values (normal path).
+         *  2. Legacy XOR-encoded values from older installs — decoded once,
+         *     then the caller should re-save via [encodeApiKey] to migrate.
+         *  3. Empty / invalid input -> "".
+         */
+        fun decodeApiKey(encoded: String): String {
+            if (encoded.isBlank()) return ""
+            val viaKeystore = SecureKeyStore.decrypt(encoded)
+            if (viaKeystore.isNotEmpty()) return viaKeystore
+            // Fall back to legacy format so existing users don't lose their key
+            return legacyXorDecode(encoded) ?: ""
+        }
+
+        /**
+         * Call once after decoding, from any place holding a Context, to
+         * silently upgrade a legacy XOR-stored key to Keystore-backed AES.
+         * Safe to call repeatedly — it's a no-op once migrated.
+         */
+        fun migrateApiKeyIfNeeded(context: android.content.Context) {
+            try {
+                val prefs = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
+                val stored = prefs.getString("api_key_enc", "") ?: return
+                if (stored.isBlank()) return
+                if (SecureKeyStore.decrypt(stored).isNotEmpty()) return // already new format
+                val legacy = legacyXorDecode(stored) ?: return
+                if (legacy.isBlank()) return
+                prefs.edit().putString("api_key_enc", SecureKeyStore.encrypt(legacy)).apply()
+                android.util.Log.i("IRazor", "API key migrated to Keystore-backed encryption")
+            } catch (e: Exception) {
+                android.util.Log.w("IRazor", "API key migration skipped: ${e.message}")
+            }
+        }
+
+        // ── Bundle decryption: bundle.enc → extracts index.html to webRoot ──
+        // Format: [16 bytes IV][AES-256-CBC / PKCS5Padding encrypted ZIP]
+        // Key: PBKDF2-HMAC-SHA256(password, salt, 65536 iter, 32 bytes)
+        fun decryptBundle(context: android.content.Context, webRoot: File): Boolean {
+            return try {
+                val encBytes = context.assets.open("bundle.enc").use { it.readBytes() }
+                android.util.Log.i("IRazor", "bundle.enc size: ${encBytes.size} bytes")
+
+                // Derive key — must match encrypt_bundle.py exactly
+                val password  = "IRazorSecretKey2025!".toCharArray()
+                val salt      = "IRazorSalt1234567890".toByteArray(Charsets.UTF_8)
+                val spec: KeySpec = PBEKeySpec(password, salt, 65536, 256)
+                val factory   = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+                val keyBytes  = factory.generateSecret(spec).encoded
+                val secretKey = SecretKeySpec(keyBytes, "AES")
+
+                // Split IV (first 16 bytes) and ciphertext
+                val iv         = encBytes.copyOfRange(0, 16)
+                val ciphertext = encBytes.copyOfRange(16, encBytes.size)
+
+                // Decrypt
+                val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+                cipher.init(Cipher.DECRYPT_MODE, secretKey, IvParameterSpec(iv))
+                val zipBytes = cipher.doFinal(ciphertext)
+                android.util.Log.i("IRazor", "Decrypted ZIP size: ${zipBytes.size} bytes")
+
+                // Extract ZIP → webRoot
+                webRoot.mkdirs()
+                val webRootCanonical = webRoot.canonicalPath + File.separator
+                val zis = ZipInputStream(zipBytes.inputStream())
+                var entry = zis.nextEntry
+                var extracted = 0
+                while (entry != null) {
+                    if (!entry.isDirectory) {
+                        val outFile = File(webRoot, entry.name)
+                        // Zip Slip guard: reject entries that would land outside webRoot
+                        val outCanonical = outFile.canonicalPath
+                        if (!outCanonical.startsWith(webRootCanonical)) {
+                            android.util.Log.e("IRazor", "Blocked unsafe zip entry: ${entry.name}")
+                            zis.closeEntry()
+                            entry = zis.nextEntry
+                            continue
+                        }
+                        outFile.parentFile?.mkdirs()
+                        FileOutputStream(outFile).use { out -> zis.copyTo(out) }
+                        android.util.Log.i("IRazor", "Extracted: ${entry.name} (${outFile.length()} bytes)")
+                        extracted++
+                    }
+                    zis.closeEntry()
+                    entry = zis.nextEntry
+                }
+                zis.close()
+                android.util.Log.i("IRazor", "Bundle extraction complete: $extracted file(s)")
+                extracted > 0
+            } catch (e: Exception) {
+                android.util.Log.e("IRazor", "decryptBundle failed: ${e.javaClass.simpleName}: ${e.message}")
+                false
+            }
+        }
+
+        // ── NDK / JNI ──────────────────────────────────────────────────────
         init {
             try { System.loadLibrary("irazor_native") }
             catch (e: UnsatisfiedLinkError) {
@@ -74,25 +239,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    internal external fun nativeInitEngine(): Boolean
-    internal external fun nativeProcessBuffer(buffer: ByteArray, extension: String?, flags: Int): String?
-    internal external fun nativeRenderFrame()
-    internal external fun nativeDispatchCompute(input: ByteArray, operation: Int): ByteArray?
-    internal external fun nativeGetGpuInfo(): String?
+    // ── JNI (optional native engine) ──────────────────────────────────────
+    // NOTE: Registered via RegisterNatives in native_bridge.cpp JNI_OnLoad.
+    external fun nativeInitEngine(): Boolean
+    external fun nativeProcessBuffer(buffer: ByteArray, extension: String?, flags: Int): String?
+    external fun nativeRenderFrame()
+    external fun nativeDispatchCompute(input: ByteArray, operation: Int): ByteArray?
+    external fun nativeGetGpuInfo(): String?
 
+    // ── Splash views ─────────────────────────────────────────────────────
     private lateinit var logoGlow:     View
-    private lateinit var logoView:     View
+    private lateinit var logoView:     android.widget.ImageView
     private lateinit var titleText:    TextView
     private lateinit var badgeText:    TextView
     private lateinit var subtitleText: TextView
-    private lateinit var installBtn:   Button
-    private lateinit var progressBar:  ProgressBar
-    private lateinit var progressText: TextView
     private lateinit var statusText:   TextView
-    private lateinit var poweredText:  TextView
+    private lateinit var splashRoot:   View
 
-   private lateinit var webView: WebView
-    var isArabic = false   
+    // ── WebView ────────────────────────────────────────────────────────────
+    private lateinit var webView: WebView
+    var isArabic = false
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var webViewReady      = false
@@ -103,6 +269,22 @@ class MainActivity : AppCompatActivity() {
 
     private var webViewFileChooserCallback: ValueCallback<Array<Uri>>? = null
 
+    // ── Google Sign-In ─────────────────────────────────────────────────────
+    private val GOOGLE_CLIENT_ID = "236344436425-17pdph0ddc9jcgmtapkvqkn3p9kk34i6.apps.googleusercontent.com"
+    private var googleIdToken: String? = null
+    private lateinit var googleSignInClient: GoogleSignInClient
+
+    private var googleSignInLaunched = false
+
+    private val googleSignInLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        googleSignInLaunched = false
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        handleGoogleSignInResult(task)
+    }
+
+    // ── File pickers ───────────────────────────────────────────────────────
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -157,29 +339,63 @@ class MainActivity : AppCompatActivity() {
     ) { }
 
     fun triggerFilePicker() { filePickerLauncher.launch("*/*") }
-    
+
+    // ── Lifecycle ──────────────────────────────────────────────────────────
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            != PackageManager.PERMISSION_GRANTED) {
+            storagePermLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            !Environment.isExternalStorageManager()) {
+            try {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
+                ).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                manageStorageLauncher.launch(intent)
+            } catch (e: Exception) {
+                android.util.Log.w("IRazor", "Manage storage intent failed: ${e.message}")
+            }
+        }
+
+        // Log signing certificate SHA-1 for Google Sign-In debugging
+        logSigningCertSha1()
+
+        // One-time, idempotent upgrade of any legacy XOR-stored API key
+        // to Keystore-backed AES-256-GCM.
+        migrateApiKeyIfNeeded(this)
+
+        splashRoot = findViewById(R.id.splash_root)
+
         logoGlow     = findViewById(R.id.logo_glow)
-        logoView     = findViewById(R.id.logo_view)
+        logoView     = findViewById<android.widget.ImageView>(R.id.logo_view)
         titleText    = findViewById(R.id.title_text)
         badgeText    = findViewById(R.id.badge_text)
         subtitleText = findViewById(R.id.subtitle_text)
-        installBtn   = findViewById(R.id.install_btn)
-        progressBar  = findViewById(R.id.progress_bar)
-        progressText = findViewById(R.id.progress_text)
         statusText   = findViewById(R.id.status_text)
-        poweredText  = findViewById(R.id.powered_text)
 
         isArabic = false
         getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
             .edit().putString(PREF_LANG, "en").apply()
 
-        requestStoragePermissionsIfNeeded()
-        playEntranceAnim()
+        subtitleText.text = "Sign in with Google to continue"
+
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(GOOGLE_CLIENT_ID)
+            .requestEmail()
+            .build()
+        googleSignInClient = GoogleSignIn.getClient(this, gso)
+
+        val googleBtn = findViewById<com.google.android.gms.common.SignInButton>(R.id.google_sign_in_btn)
+        googleBtn.setOnClickListener { signInWithGoogle() }
 
         scope.launch(Dispatchers.IO) {
             nativeEngineReady = try { nativeInitEngine() }
@@ -187,10 +403,17 @@ class MainActivity : AppCompatActivity() {
             android.util.Log.i("IRazor", "Native engine ready: $nativeEngineReady")
         }
 
-        if (isCurrentVersionInstalled()) showWebView()
-        else {
-            showInstallScreen()
-            installBtn.setOnClickListener { startInstall() }
+        // Skip splash if already installed, else brief delay for new users
+        val alreadyInstalled = File(filesDir, "$WEB_ROOT_DIR/index.html").exists()
+        if (alreadyInstalled) {
+            showWebView()
+            splashRoot.visibility = View.GONE
+        } else {
+            scope.launch {
+                delay(2000)
+                showWebView()
+                splashRoot.visibility = View.GONE
+            }
         }
     }
 
@@ -199,224 +422,101 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
-    private fun requestStoragePermissionsIfNeeded() {
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
-            ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            storagePermLauncher.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-            !Environment.isExternalStorageManager()) {
-            try {
-                val intent = android.content.Intent(
-                    android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
-                ).apply { data = android.net.Uri.parse("package:$packageName") }
-                manageStorageLauncher.launch(intent)
-            } catch (e: Exception) {
-                android.util.Log.w("IRazor", "Manage storage intent failed: ${e.message}")
+    // ── Google Sign-In ─────────────────────────────────────────────────────
+
+    private fun logSigningCertSha1() {
+        try {
+            val pm = packageManager
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+                PackageManager.GET_SIGNING_CERTIFICATES else 0
+            val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+                pm.getPackageInfo(packageName, flags)
+            else
+                pm.getPackageInfo(packageName, PackageManager.GET_SIGNATURES)
+            val sigs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+                info.signingInfo?.apkContentsSigners else info.signatures
+            sigs?.firstOrNull()?.let { sig ->
+                val cert = CertificateFactory.getInstance("X.509")
+                    .generateCertificate(ByteArrayInputStream(sig.toByteArray()))
+                val digest = MessageDigest.getInstance("SHA-1").digest(cert.encoded)
+                val sha1 = digest.joinToString(":") { "%02X".format(it) }
+                android.util.Log.i("IRazor", "APK SHA-1: $sha1")
+                android.util.Log.i("IRazor", "To fix Google Sign-In error 10, register this SHA-1 at https://console.cloud.google.com/apis/credentials")
             }
+        } catch (e: Exception) {
+            android.util.Log.w("IRazor", "Failed to get SHA-1: ${e.message}")
         }
     }
 
-    private fun playEntranceAnim() {
-        val views = listOf(logoGlow, logoView, titleText, badgeText, subtitleText)
-        views.forEach { it.alpha = 0f; it.translationY = 40f }
-        views.forEachIndexed { i, v ->
-            v.animate()
-                .alpha(1f).translationY(0f)
-                .setStartDelay(80L * i).setDuration(420)
-                .setInterpolator(DecelerateInterpolator())
-                .start()
-        }
-        android.animation.ObjectAnimator.ofFloat(logoGlow, "alpha", 0.25f, 0.55f).apply {
-            duration = 2000
-            repeatCount = android.animation.ObjectAnimator.INFINITE
-            repeatMode  = android.animation.ObjectAnimator.REVERSE
-            start()
+    fun signInWithGoogle() {
+        if (googleSignInLaunched) return
+        googleSignInLaunched = true
+        googleSignInLauncher.launch(googleSignInClient.signInIntent)
+    }
+
+    fun switchAccount() {
+        googleSignInClient.signOut().addOnCompleteListener {
+            googleIdToken = null
+            signInWithGoogle()
         }
     }
 
-    private fun isCurrentVersionInstalled(): Boolean {
-        val prefs = getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
-        if (prefs.getInt(PREF_INSTALLED_VERSION, -1) != BUNDLE_VERSION) return false
-        return File(filesDir, "$WEB_ROOT_DIR/index.html").exists()
-    }
+    private fun handleGoogleSignInResult(task: Task<GoogleSignInAccount>) {
+        try {
+            val account = task.getResult(Exception::class.java)
+            googleIdToken = account?.idToken
+            val displayName = account?.displayName ?: "User"
 
-    private fun showInstallScreen() {
-        runOnUiThread {
-            installBtn.visibility   = View.VISIBLE
-            progressBar.visibility  = View.GONE
-            progressText.visibility = View.GONE
-            statusText.visibility   = View.GONE
+            toast("Signed in as $displayName")
+            subtitleText.text = "Welcome, $displayName ✓"
 
-            installBtn.text    = "Install IRazor AI"
-            subtitleText.text  = "First launch — tap to install"
-            installBtn.alpha = 0f
-            installBtn.animate().alpha(1f).setStartDelay(400).setDuration(300).start()
-        }
-    }
-
-    private fun showProgress(message: String, progress: Int = -1) {
-        runOnUiThread {
-            installBtn.visibility   = View.GONE
-            progressBar.visibility  = View.VISIBLE
-            progressText.visibility = View.VISIBLE
-            statusText.visibility   = View.VISIBLE
-            statusText.text = message
-            if (progress >= 0) {
-                progressBar.isIndeterminate = false
-                android.animation.ObjectAnimator
-                    .ofInt(progressBar, "progress", progressBar.progress, progress)
-                    .setDuration(200).start()
-            } else {
-                progressBar.isIndeterminate = true
+            if (webViewReady) injectGoogleToken()
+        } catch (e: ApiException) {
+            val msg = when (e.statusCode) {
+                10 -> "Google Sign-In: SHA-1 mismatch. Logcat shows your SHA-1. Register it at console.cloud.google.com"
+                else -> "Google Sign-In error ${e.statusCode}: ${e.localizedMessage?.take(60)}"
             }
+            android.util.Log.e("IRazor", msg)
+            toast(msg.take(60))
+            statusText.text = msg.take(100)
+            statusText.visibility = View.VISIBLE
+        } catch (e: Exception) {
+            android.util.Log.e("IRazor", "Google Sign-In failed", e)
+            toast("Sign-In failed: ${e.message?.take(60)}")
         }
     }
 
-    private fun showError(message: String) {
-        runOnUiThread {
-            progressBar.visibility  = View.GONE
-            progressText.visibility = View.GONE
-            statusText.visibility   = View.VISIBLE
-            statusText.text         = "Error: $message"
-            installBtn.visibility   = View.VISIBLE
-            installBtn.text         = "Retry"
-        }
+    private fun injectGoogleToken() {
+        val token = googleIdToken ?: return
+        val js = """
+            (function(){
+                window.__GOOGLE_ID_TOKEN__ = '${token.replace("'", "\\'")}';
+                window.dispatchEvent(new CustomEvent('google-sign-in', { detail: { token: '${
+                    token.replace("'", "\\'")
+                }' } }));
+                console.log('[IRazor] Google token injected');
+            })();
+        """.trimIndent()
+        webView.evaluateJavascript(js, null)
     }
 
     private fun toast(msg: String) =
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 
-
-
-    private fun decryptBundleToBytes(encryptedData: ByteArray): ByteArray {
-        val iv      = encryptedData.copyOfRange(0, 16)
-        val cipher  = encryptedData.copyOfRange(16, encryptedData.size)
-        val spec    = PBEKeySpec(
-            AES_PASSWORD.toCharArray(),
-            AES_SALT.toByteArray(Charsets.UTF_8),
-            PBKDF2_ITER, KEY_BITS
-        )
-        val keyBytes  = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-            .generateSecret(spec).encoded
-        val secretKey = SecretKeySpec(keyBytes, "AES")
-        val aes       = Cipher.getInstance("AES/CBC/PKCS5Padding")
-        aes.init(Cipher.DECRYPT_MODE, secretKey, IvParameterSpec(iv))
-        return aes.doFinal(cipher)
-    }
-
-   private fun startInstall() {
-        scope.launch {
-            withContext(Dispatchers.IO) {
-                try {
-                    showProgress("Preparing...", 0)
-
-                    val webRoot = File(filesDir, WEB_ROOT_DIR)
-                    if (webRoot.exists()) webRoot.deleteRecursively()
-                    webRoot.mkdirs()
-
-
-                    val hasBundleEnc = try {
-                        assets.open(BUNDLE_ASSET_ENC).close(); true
-                    } catch (_: Exception) { false }
-
-                    if (hasBundleEnc) {
-
-                        showProgress("Loading bundle...", 5)
-                        val encBytes = assets.open(BUNDLE_ASSET_ENC).use { it.readBytes() }
-                        android.util.Log.i("IRazor", "bundle.enc loaded: ${encBytes.size} bytes")
-
-                        showProgress("Decrypting...", 15)
-                        val zipBytes = try {
-                            decryptBundleToBytes(encBytes)
-                        } catch (e: Exception) {
-                            throw Exception("Decryption failed: ${e.message}")
-                        }
-                        android.util.Log.i("IRazor", "Decrypted ZIP: ${zipBytes.size} bytes")
-
-                        showProgress("Extracting files...", 35)
-                        var count = 0
-                        zipBytes.inputStream().use { bis ->
-                            ZipInputStream(bis).use { zis ->
-                                var entry = zis.nextEntry
-                                while (entry != null) {
-                                    val outFile = File(webRoot, entry.name)
-                                    if (entry.isDirectory) {
-                                        outFile.mkdirs()
-                                    } else {
-                                        outFile.parentFile?.mkdirs()
-                                        FileOutputStream(outFile).use { out ->
-                                            zis.copyTo(out, bufferSize = 65536)
-                                        }
-                                    }
-                                    count++
-                                    val pct = 35 + (count.toFloat() / 300 * 55).toInt().coerceIn(0, 55)
-                                    showProgress("Extracting... ($count files)", pct)
-                                    zis.closeEntry()
-                                    entry = zis.nextEntry
-                                }
-                            }
-                        }
-                        showProgress("Extracted $count files.", 92)
-
-                    } else {
-
-                        android.util.Log.i("IRazor", "bundle.enc not found — copying raw assets")
-                        showProgress("Copying assets...", 10)
-                        val assetList = assets.list("") ?: emptyArray()
-                        if (assetList.isEmpty()) {
-                            throw Exception("No assets found (bundle.enc and index.html both missing)")
-                        }
-                        var copied = 0
-                        assetList.forEachIndexed { i, name ->
-                            if (name.isNotBlank()) {
-                                try {
-                                    assets.open(name).use { src ->
-                                        File(webRoot, name).outputStream().use { src.copyTo(it) }
-                                    }
-                                    copied++
-                                } catch (_: Exception) {  }
-                            }
-                            val pct = 10 + (i.toFloat() / assetList.size.coerceAtLeast(1) * 82).toInt()
-                            showProgress("Copying: $name", pct)
-                        }
-                        if (copied == 0) {
-                            throw Exception("No files found in assets")
-                        }
-                        android.util.Log.i("IRazor", "Copied $copied asset files")
-                        showProgress("Copied $copied files.", 92)
-                    }
-
-
-                    showProgress("Finalizing...", 96)
-                    getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
-                        .edit().putInt(PREF_INSTALLED_VERSION, BUNDLE_VERSION).apply()
-
-                    showProgress("Ready!", 100)
-                    delay(600)
-                    withContext(Dispatchers.Main) { showWebView() }
-
-                } catch (e: Exception) {
-                    android.util.Log.e("IRazor", "Install failed", e)
-                    showError(e.message ?: "Unknown error")
-                }
-            }
-        }
-    }
+    // ── WebView setup ──────────────────────────────────────────────────────
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun showWebView() {
         setContentView(R.layout.activity_webview)
         webView = findViewById(R.id.webview)
 
-
+        // Always English
         isArabic = false
 
         configureWebView()
         webViewReady = true
 
-
+        // Deliver any bundle that was loaded before WebView was ready
         pendingBundleBytes?.let { bytes ->
             pendingBundleExt?.let { ext -> pushBundleToWebView(bytes, ext) }
             pendingBundleBytes = null
@@ -433,18 +533,26 @@ class MainActivity : AppCompatActivity() {
             domStorageEnabled                = true
             allowFileAccess                  = true
             allowContentAccess               = true
-            @Suppress("DEPRECATION") allowUniversalAccessFromFileURLs = true
-            @Suppress("DEPRECATION") allowFileAccessFromFileURLs      = true
+            // SECURITY: these were previously `true`, which lets the local
+            // file:// page make same-origin-policy-free requests to ANY
+            // file:// or http(s):// origin — a well-known WebView privilege
+            // escalation vector. The app's own assets are same-origin under
+            // webRoot and still load fine with these disabled.
+            @Suppress("DEPRECATION") allowUniversalAccessFromFileURLs = false
+            @Suppress("DEPRECATION") allowFileAccessFromFileURLs      = false
             cacheMode                        = WebSettings.LOAD_DEFAULT
             databaseEnabled                  = true
             loadsImagesAutomatically         = true
             mediaPlaybackRequiresUserGesture = false
-            mixedContentMode                 = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            // SECURITY: the app only talks to https:// endpoints; never allow
+            // an https page to silently load http:// (unencrypted) content.
+            mixedContentMode                 = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             useWideViewPort                  = true
             loadWithOverviewMode             = true
             setSupportZoom(true)
             builtInZoomControls              = true
             displayZoomControls              = false
+            defaultTextEncodingName          = "UTF-8"
             userAgentString                  = "IRazorAI/1.0 Android WebView"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 @Suppress("DEPRECATION")
@@ -503,7 +611,7 @@ class MainActivity : AppCompatActivity() {
                     error.description.toString() else "Load error"
                 android.util.Log.e("IRazor", "WebView error [${request.url}]: $desc")
                 if (request.isForMainFrame) {
-
+                    // Show visible error so user knows what happened
                     view.loadDataWithBaseURL(null, """
                         <!DOCTYPE html><html><body style="background:#0a0a0f;color:#f87171;
                         font-family:monospace;padding:24px;margin:0">
@@ -521,12 +629,20 @@ class MainActivity : AppCompatActivity() {
                 handler: android.webkit.SslErrorHandler,
                 error: android.net.http.SslError
             ) {
-
-                handler.proceed()
+                // SECURITY: never blindly trust an invalid/self-signed certificate.
+                // Doing so (the previous handler.proceed()) let an attacker on the
+                // network perform a man-in-the-middle attack against every HTTPS
+                // request the app makes (API keys, chat content, etc.). The app
+                // only talks to file:// (local assets) and known https:// hosts,
+                // neither of which should ever produce a real SSL error, so we
+                // cancel and surface the problem instead of silently bypassing it.
+                android.util.Log.e("IRazor", "SSL error blocked: ${error.primaryError} for ${error.url}")
+                handler.cancel()
             }
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
                 injectBridgeConfig()
+                if (googleIdToken != null) injectGoogleToken()
             }
         }
 
@@ -538,17 +654,34 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadApp() {
-        val indexFile = File(filesDir, "$WEB_ROOT_DIR/index.html")
+        val webRoot   = File(filesDir, WEB_ROOT_DIR)
+        val indexFile = File(webRoot, "index.html")
+
         if (!indexFile.exists()) {
-            android.util.Log.e("IRazor", "index.html not found at: ${indexFile.absolutePath}")
-            webView.loadDataWithBaseURL(
-                null,
-                buildFallbackHtml(),
-                "text/html",
-                "UTF-8",
-                null
-            )
-            return
+            // Try 1: Decrypt bundle.enc from assets
+            android.util.Log.i("IRazor", "index.html not found — attempting bundle.enc decryption…")
+            updateStatus("Decrypting bundle…")
+            if (!decryptBundle(this, webRoot)) {
+                // Try 2: Copy index.html directly from assets (no bundle.enc)
+                android.util.Log.i("IRazor", "bundle.enc not available — copying index.html from assets…")
+                updateStatus("Loading…")
+                try {
+                    webRoot.mkdirs()
+                    assets.open("index.html").use { input ->
+                        FileOutputStream(indexFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("IRazor", "Failed to copy index.html: ${e.message}")
+                }
+            }
+
+            if (!indexFile.exists()) {
+                android.util.Log.e("IRazor", "index.html missing after all recovery attempts")
+                webView.loadDataWithBaseURL(null, buildFallbackHtml(), "text/html", "UTF-8", null)
+                return
+            }
         }
 
         val fileUrl = android.net.Uri.fromFile(indexFile).toString()
@@ -556,12 +689,18 @@ class MainActivity : AppCompatActivity() {
         webView.loadUrl(fileUrl)
     }
 
+    private fun updateStatus(msg: String) {
+        try { statusText.text = msg } catch (_: Exception) {}
+    }
+
+    // ── Bridge injection ───────────────────────────────────────────────────
+
     private fun injectBridgeConfig() {
         val rawKey   = decodeApiKey(
             getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
                 .getString("api_key_enc", "") ?: ""
         )
-
+        // Safe JSON string — escapes backslash, quotes, newlines
         fun jsStr(s: String) = s
             .replace("\\", "\\\\")
             .replace("'", "\\'")
@@ -570,12 +709,12 @@ class MainActivity : AppCompatActivity() {
 
         val gpuInfoRaw = try { nativeGetGpuInfo() ?: "null" }
                          catch (_: Throwable) { "null" }
-
+        // Validate gpuInfo is valid JSON — fallback to null if not
         val gpuInfo = try {
-            org.json.JSONObject(gpuInfoRaw); gpuInfoRaw   
+            org.json.JSONObject(gpuInfoRaw); gpuInfoRaw   // valid JSON object
         } catch (_: Throwable) {
-            try { gpuInfoRaw.toDouble(); gpuInfoRaw }     
-            catch (_: Throwable) { "null" }              
+            try { gpuInfoRaw.toDouble(); gpuInfoRaw }     // valid number
+            catch (_: Throwable) { "null" }              // invalid — use null
         }
 
         val webRoot     = File(filesDir, WEB_ROOT_DIR)
@@ -625,6 +764,8 @@ class MainActivity : AppCompatActivity() {
         webView.evaluateJavascript(js, null)
     }
 
+    // ── Download handling ──────────────────────────────────────────────────
+
     private fun handleDownload(url: String, userAgent: String, contentDisposition: String, mimetype: String) {
         try {
             when {
@@ -669,7 +810,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-   private fun pushBundleToWebView(bytes: ByteArray, ext: String) {
+    // ── Bundle delivery to WebView ─────────────────────────────────────────
+
+    private fun pushBundleToWebView(bytes: ByteArray, ext: String) {
         if (!webViewReady || !::webView.isInitialized) return
         val b64  = Base64.encodeToString(bytes, Base64.NO_WRAP)
         val size = bytes.size
@@ -690,10 +833,12 @@ class MainActivity : AppCompatActivity() {
         toast("Loaded: $ext (${fmtSize(size)})")
     }
 
+    // ── Language (kept for API compat, always English) ─────────────────────
+
     fun getCurrentLang(): String = "en"
 
     fun setLanguage(arabic: Boolean) {
-
+        // Always English — ignore
         isArabic = false
         if (::webView.isInitialized) {
             webView.evaluateJavascript(
@@ -701,6 +846,8 @@ class MainActivity : AppCompatActivity() {
             )
         }
     }
+
+    // ── Utilities ──────────────────────────────────────────────────────────
 
     private fun resolveFileExtension(uri: Uri): String {
         contentResolver.query(uri, null, null, null, null)?.use {
@@ -730,8 +877,11 @@ class MainActivity : AppCompatActivity() {
 
     @Deprecated("Required for pre-API33")
     override fun onBackPressed() {
-        if (::webView.isInitialized && webView.canGoBack()) webView.goBack()
-        else super.onBackPressed()
+        if (::webView.isInitialized && webView.canGoBack()) {
+            webView.goBack()
+        } else {
+            moveTaskToBack(true)
+        }
     }
 
     private fun buildFallbackHtml() = """
@@ -749,7 +899,7 @@ class MainActivity : AppCompatActivity() {
           p{color:#94a3b8;margin:0;line-height:1.6;}
         </style></head>
         <body><div class="card">
-          <h2>IRazor AI</h2>
+          <h2>⚡ IRazor AI</h2>
           <p>App files not found. Please restart the app.</p>
         </div></body></html>
     """.trimIndent()
